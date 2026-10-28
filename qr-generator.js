@@ -1,14 +1,12 @@
 (() => {
+  'use strict';
   const count = 27;
   const input = document.getElementById('base-url');
   const generateButton = document.getElementById('generate');
   const printButton = document.getElementById('print');
   const status = document.getElementById('status');
   const grid = document.getElementById('qr-grid');
-  const remoteQrEndpoint = 'https://api.qrserver.com/v1/create-qr-code/';
-  let remoteTotal = 0;
-  let remoteLoaded = 0;
-  let remoteFailed = 0;
+  let qrInstances = [];
 
   function normalizeBase(raw) {
     if (!raw.trim()) throw new Error('Pega primero la dirección pública de tu sitio de GitHub Pages.');
@@ -25,72 +23,31 @@
     return url.href;
   }
 
-  function updateRemoteStatus() {
-    if (remoteFailed > 0) {
-      status.textContent = `Se prepararon los enlaces, pero ${remoteFailed} imagen(es) QR no cargaron. Comprueba que tienes conexión a internet y vuelve a generarlos.`;
-    } else if (remoteTotal > 0 && remoteLoaded === remoteTotal) {
-      status.textContent = `¡Listo! Se cargaron los 27 códigos QR. Prueba los enlaces antes de imprimir.`;
+  function makeQr(target, container, number) {
+    if (typeof window.QRCodeStyling !== 'function') {
+      throw new Error('No se cargó el generador de QR. Comprueba que tienes internet, recarga la página y vuelve a intentarlo.');
     }
-  }
-
-  function makeRemoteQr(container, target, number) {
-    remoteTotal += 1;
-    const img = document.createElement('img');
-    img.alt = `Código QR ${String(number).padStart(2, '0')}`;
-    img.width = 180;
-    img.height = 180;
-    img.decoding = 'async';
-    img.referrerPolicy = 'no-referrer';
-    img.onload = () => {
-      remoteLoaded += 1;
-      updateRemoteStatus();
-    };
-    img.onerror = () => {
-      remoteFailed += 1;
-      const error = document.createElement('p');
-      error.className = 'smallnote';
-      error.textContent = 'No se pudo cargar este QR. Revisa tu conexión y vuelve a pulsar Crear los 27 QR.';
-      container.replaceChildren(error);
-      updateRemoteStatus();
-    };
-    img.src = `${remoteQrEndpoint}?size=180x180&format=png&data=${encodeURIComponent(target)}`;
-    container.replaceChildren(img);
-  }
-
-  function downloadQr(card, number) {
-    const img = card.querySelector('.qr-code img');
-    const canvas = card.querySelector('.qr-code canvas');
-    let data = '';
-    try {
-      if (img?.src?.startsWith('data:')) data = img.src;
-      if (!data && canvas) data = canvas.toDataURL('image/png');
-    } catch (_) {
-      data = '';
-    }
-    if (data) {
-      const link = document.createElement('a');
-      link.href = data;
-      link.download = `QR-Habibi-${String(number).padStart(2, '0')}.png`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      return;
-    }
-    if (img?.src && img.complete && img.naturalWidth > 0) {
-      window.open(img.src, '_blank', 'noopener');
-      status.textContent = `Se abrió la imagen del QR ${String(number).padStart(2, '0')} en otra pestaña. Si necesitas guardarla, haz clic derecho en la imagen y elige “Guardar imagen como…”.`;
-      return;
-    }
-    status.textContent = 'Este QR todavía no está listo. Espera a que cargue y vuelve a intentarlo.';
+    const qr = new window.QRCodeStyling({
+      width: 260,
+      height: 260,
+      type: 'canvas',
+      data: target,
+      margin: 12,
+      qrOptions: { errorCorrectionLevel: 'H', typeNumber: 0 },
+      dotsOptions: { color: '#a9475e', type: 'dots' },
+      cornersSquareOptions: { color: '#783247', type: 'extra-rounded' },
+      cornersDotOptions: { color: '#783247', type: 'dot' },
+      backgroundOptions: { color: '#ffffff' }
+    });
+    qr.append(container);
+    qrInstances[number] = qr;
+    return qr;
   }
 
   function makeCards(base) {
     grid.replaceChildren();
-    remoteTotal = 0;
-    remoteLoaded = 0;
-    remoteFailed = 0;
-    let usingLocalLibrary = typeof window.QRCode !== 'undefined';
-
+    qrInstances = [];
+    const cards = [];
     for (let number = 1; number <= count; number += 1) {
       const page = `razon-${String(number).padStart(2, '0')}.html`;
       const target = new URL(page, base).href;
@@ -100,21 +57,6 @@
       heading.textContent = `Razón ${String(number).padStart(2, '0')} ♡`;
       const qr = document.createElement('div');
       qr.className = 'qr-code';
-      if (usingLocalLibrary) {
-        try {
-          new window.QRCode(qr, {
-            text: target,
-            width: 180,
-            height: 180,
-            correctLevel: window.QRCode.CorrectLevel.H
-          });
-        } catch (_) {
-          usingLocalLibrary = false;
-          makeRemoteQr(qr, target, number);
-        }
-      } else {
-        makeRemoteQr(qr, target, number);
-      }
       const anchor = document.createElement('a');
       anchor.href = target;
       anchor.textContent = target;
@@ -124,17 +66,22 @@
       button.className = 'btn secondary';
       button.type = 'button';
       button.textContent = 'Descargar QR PNG';
-      button.addEventListener('click', () => downloadQr(card, number));
+      button.addEventListener('click', () => {
+        const instance = qrInstances[number];
+        if (!instance) {
+          status.textContent = 'Este QR aún no está listo. Vuelve a generarlo.';
+          return;
+        }
+        instance.download({ name: `QR-Habibi-${String(number).padStart(2, '0')}`, extension: 'png' });
+      });
       card.append(heading, qr, anchor, document.createElement('br'), button);
       grid.appendChild(card);
+      cards.push({ target, qr, number });
     }
+    // Build QR images only after all cards are attached to the document.
+    cards.forEach(({ target, qr, number }) => makeQr(target, qr, number));
     printButton.disabled = false;
-    if (remoteTotal > 0) {
-      status.textContent = 'La librería QR no se cargó; se están preparando los códigos con el método alternativo. Espera a que aparezcan las imágenes.';
-      updateRemoteStatus();
-    } else {
-      status.textContent = '¡Listo! Se crearon 27 códigos únicos. Prueba los enlaces antes de imprimir.';
-    }
+    status.textContent = '¡Listo! Se crearon 27 QR con puntos redondos y esquinas suaves. Prueba varios con la cámara antes de imprimir.';
   }
 
   generateButton.addEventListener('click', () => {
@@ -145,6 +92,5 @@
       printButton.disabled = true;
     }
   });
-
   printButton.addEventListener('click', () => window.print());
 })();
