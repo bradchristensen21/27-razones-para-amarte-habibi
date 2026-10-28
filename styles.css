@@ -85,4 +85,25 @@ input[type=url] { flex: 1 1 300px; min-width: 0; border: 1px solid var(--line); 
 .qr-card .btn { margin-top: 12px; font-size: .78rem; padding: 9px 12px; }
 @media (max-width: 650px) { .reason-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; } .reason-tile { min-height: 90px; } .qr-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 420px) { .reason-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .nav { font-size: .7rem; } .qr-grid { grid-template-columns: 1fr; } .player-label { font-size: .73rem; } }
-@media print { body, .site-shell { background: #fff; } .topline, .nav, .hero, .footer { display: none !important; } .wrap { width: 100%; max-width: none; margin: 0; } .admin .feature, .admin > h2, .admin > .intro { display: none !important; } .admin { display: block !important; } .qr-grid { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 0; } .qr-card { border: 1px solid #bbb; box-shadow: none; background: #fff; color: #222; } .qr-card .btn, .qr-card a { display: none; } .qr-code { min-height: 180px; } .qr-code img { width: 180px; height: 180px; } }
+
+
+/* Circular-dot QR design: keep the full QR geometry intact for reliable scanning. */
+.qr-code { min-height: 230px; padding: 8px; }
+.qr-code canvas, .qr-code svg, .qr-code img { display: block; width: 220px !important; height: 220px !important; max-width: 100%; margin: auto; }
+.qr-card { border-radius: 20px; }
+.qr-card h3 { margin-bottom: 10px; }
+.qr-card .qr-code { background: #fff; border: 1px solid #f0d8d9; border-radius: 22px; width: fit-content; min-width: 236px; margin: 0 auto 12px; }
+@media print {
+  body, .site-shell { background: #fff !important; }
+  .topline, .nav, .hero, .footer { display: none !important; }
+  .admin { padding: 0 !important; }
+  .admin > .feature, .admin > h2, .admin > .intro { display: none !important; }
+  .wrap { width: 100% !important; max-width: none !important; }
+  .qr-grid { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 8px !important; padding: 0 !important; }
+  .qr-card { border: 1px solid #bbb; box-shadow: none; padding: 8px; }
+  .qr-card .btn, .qr-card a { display: none !important; }
+  .qr-code { min-height: 0 !important; border: 0 !important; background: #fff !important; padding: 0 !important; }
+  .qr-code canvas, .qr-code svg, .qr-code img { width: 165px !important; height: 165px !important; }
+  .qr-card h3 { font-size: 10pt; margin: 0 0 5px; }
+  @page { margin: 10mm; }
+}
